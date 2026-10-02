@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>アボカド・イン・ザ_バディ ～胃袋脱出大作戦～</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #0d0208;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #1a030b;
+            box-shadow: 0 0 40px rgba(244, 63, 94, 0.3);
+            cursor: crosshair;
+        }
+        .custom-btn {
+            background: linear-gradient(135deg, #4ade80 0%, #15803d 100%);
+            box-shadow: 0 4px 20px rgba(22, 163, 74, 0.5);
+            transition: all 0.15s ease;
+        }
+        .custom-btn:active {
+            transform: scale(0.95);
+        }
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 900;
+            user-select: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .touch-btn:active {
+            background: rgba(255, 255, 255, 0.45);
+            transform: scale(0.92);
+        }
+        .hud-glass {
+            background: rgba(18, 4, 11, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+        #joystickContainer {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            position: relative;
+            touch-action: none;
+        }
+        #joystickHandle {
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #4ade80 0%, #16a34a 100%);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen text-white relative select-none">
+
+    <!-- GAME CONTAINER -->
+    <div class="relative w-full h-full max-w-4xl max-h-screen flex items-center justify-center">
+        <canvas id="gameCanvas" class="w-full h-full rounded-2xl border-4 border-rose-900/80"></canvas>
+
+        <!-- TOUCH & JOYSTICK CONTROLS OVERLAY -->
+        <div id="touchControls" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-10">
+            <!-- Top Bar Pause & Gamepad Status -->
+            <div class="flex justify-between items-start pointer-events-auto">
+                <button id="btnPause" class="hud-glass px-4 py-2 rounded-xl text-xs text-rose-200 font-bold hover:bg-rose-900/40">
+                    ⏸ ポーズ
+                </button>
+                <div id="gamepadStatus" class="hud-glass px-3 py-1.5 rounded-xl text-[11px] font-bold text-gray-400 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-gray-500" id="gamepadDot"></span>
+                    <span id="gamepadText">コントローラー未接続</span>
+                </div>
+            </div>
+
+            <!-- Bottom Touch & Joystick Controls -->
+            <div class="flex justify-between items-end w-full pb-2 pointer-events-auto">
+                <!-- Virtual Analog Joystick -->
+                <div class="p-2">
+                    <div id="joystickContainer">
+                        <div id="joystickHandle"></div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 items-end">
+                    <div id="btnDash" class="touch-btn w-14 h-14 bg-amber-500/30 text-amber-200 text-xs flex-col border-amber-400/50">
+                        <span class="text-base">🌀</span>
+                        <span class="text-[9px]">突進</span>
+                    </div>
+                    <div id="btnVine" class="touch-btn w-14 h-14 bg-emerald-500/30 text-emerald-200 text-xs flex-col border-emerald-400/50">
+                        <span class="text-base">🎯</span>
+                        <span class="text-[9px]">ツル射出</span>
+                    </div>
+                    <div id="btnJump" class="touch-btn w-18 h-18 bg-green-500/40 text-emerald-100 text-xs flex-col border-emerald-400">
+                        <span class="text-xl">🌿</span>
+                        <span class="text-xs font-black">ジャンプ</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- START MODAL -->
+        <div id="startModal" class="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 rounded-2xl border border-rose-500/40 overflow-y-auto">
+            <div class="inline-block bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-1 rounded-full text-xs font-bold tracking-wider mb-2 text-emerald-950 uppercase">
+                バーチャルスティック＆パッド完全対応
+            </div>
+            <h1 class="text-2xl sm:text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-amber-300 to-lime-400">
+                アボカド・イン・ザ_バディ
+            </h1>
+            <p class="text-xs sm:text-sm text-rose-300 mb-4 font-bold">～胃袋脱出大作戦 フルコントローラー版～</p>
+
+            <div class="hud-glass p-4 rounded-xl text-left text-xs sm:text-sm max-w-md w-full mb-5 space-y-2 border border-rose-800/50">
+                <p class="font-bold text-emerald-400 border-b border-rose-800/60 pb-1">🕹️ 操作方法</p>
+                <div class="grid grid-cols-1 gap-1.5 text-gray-200 text-xs">
+                    <div><b>画面左下スティック / キーボード (WASD/矢印) / パッドLスティック</b> : 360°移動・エイム操作</div>
+                    <div><b>[ジャンプ] ボタン / Space / パッドA (Cross)</b> : ジャンプ・壁登り</div>
+                    <div><b>[ツル射出] ボタン / Eキー / パッドB (Circle) / R1</b> : 緑アンカーへツル射出</div>
+                    <div><b>[突進] ボタン / Shift / パッドX (Square)</b> : 高速ローリング突進</div>
+                </div>
+            </div>
+
+            <button id="btnStartGame" class="custom-btn text-white text-base sm:text-lg font-black px-8 py-3 rounded-full cursor-pointer hover:brightness-110 shadow-lg transform hover:-translate-y-0.5 transition">
+                脱出挑戦スタート！
+            </button>
+        </div>
+
+        <!-- END MODAL -->
+        <div id="endModal" class="absolute inset-0 bg-black/92 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 hidden rounded-2xl">
+            <h2 id="endTitle" class="text-3xl sm:text-5xl font-black mb-2 text-amber-400">STAGE CLEAR!</h2>
+            <p id="endSubtitle" class="text-xs sm:text-base text-emerald-300 mb-4 font-bold">救出完了！</p>
+
+            <div id="endingBadge" class="hud-glass p-4 rounded-xl text-xs sm:text-sm max-w-md w-full mb-6"></div>
+
+            <button id="btnRestart" class="custom-btn text-white font-bold px-8 py-3 rounded-full cursor-pointer">
+                もう一度挑戦
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const AudioEngine = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playBeep(freq, duration = 0.1, type = 'sine') {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            playJump() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(650, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            },
+            playVineHook() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(850, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            },
+            playVineMiss() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(90, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            },
+            playDash() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(380, this.ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            },
+            playAcid() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(80, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime + 0.06);
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            },
+            playCheckpoint() {
+                if (!this.ctx) return;
+                [523, 659, 783, 1046].forEach((f, i) => {
+                    setTimeout(() => this.playBeep(f, 0.12, 'triangle'), i * 80);
+                });
+            },
+            playWin() {
+                if (!this.ctx) return;
+                [440, 554, 659, 880, 1108].forEach((f, i) => {
+                    setTimeout(() => this.playBeep(f, 0.2, 'sine'), i * 100);
+                });
+            }
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const V_WIDTH = 800;
+        const V_HEIGHT = 600;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            const aspect = V_WIDTH / V_HEIGHT;
+
+            if (w / h > aspect) {
+                canvas.style.height = `${h}px`;
+                canvas.style.width = `${h * aspect}px`;
+            } else {
+                canvas.style.width = `${w}px`;
+                canvas.style.height = `${w / aspect}px`;
+            }
+            canvas.width = V_WIDTH;
+            canvas.height = V_HEIGHT;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let gameState = 'START';
+        let countdownValue = 3;
+        let countdownTimer = 0;
+        let score = 0;
+        let gameTime = 0;
+
+        // Virtual Analog Joystick Logic
+        const joystick = {
+            active: false,
+            touchId: null,
+            startX: 0,
+            startY: 0,
+            vectorX: 0,
+            vectorY: 0,
+            maxRadius: 40
+        };
+
+        const joystickContainer = document.getElementById('joystickContainer');
+        const joystickHandle = document.getElementById('joystickHandle');
+
+        function updateJoystickPos(clientX, clientY) {
+            const rect = joystickContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let dx = clientX - centerX;
+            let dy = clientY - centerY;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > joystick.maxRadius) {
+                dx = (dx / dist) * joystick.maxRadius;
+                dy = (dy / dist) * joystick.maxRadius;
+            }
+
+            joystick.vectorX = dx / joystick.maxRadius;
+            joystick.vectorY = dy / joystick.maxRadius;
+
+            joystickHandle.style.transform = `translate(${dx}px, ${dy}px)`;
+        }
+
+        function resetJoystick() {
+            joystick.active = false;
+            joystick.touchId = null;
+            joystick.vectorX = 0;
+            joystick.vectorY = 0;
+            joystickHandle.style.transform = `translate(0px, 0px)`;
+        }
+
+        joystickContainer.addEventListener('pointerdown', (e) => {
+            joystick.active = true;
+            joystick.touchId = e.pointerId;
+            updateJoystickPos(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (joystick.active && e.pointerId === joystick.touchId) {
+                updateJoystickPos(e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (joystick.active && e.pointerId === joystick.touchId) {
+                resetJoystick();
+            }
+        });
+
+        // Reticle aiming pos
+        const mousePos = { x: V_WIDTH / 2, y: V_HEIGHT / 2 };
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = V_WIDTH / rect.width;
+            const scaleY = V_HEIGHT / rect.height;
+            mousePos.x = (e.clientX - rect.left) * scaleX;
+            mousePos.y = (e.clientY - rect.top) * scaleY + cameraY;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && gameState === 'PLAYING') {
+                triggerVineAim(mousePos.x, mousePos.y);
+            }
+        });
+
+        // Player Seed
+        const seed = {
+            x: 400,
+            y: 3500,
+            vx: 0,
+            vy: 0,
+            radius: 20,
+            rotation: 0,
+            vRot: 0,
+            health: 100,
+            maxHealth: 100,
+            isGrounded: false,
+            isTouchingWallLeft: false,
+            isTouchingWallRight: false,
+            doubleJumpAvailable: true,
+            dashCooldown: 0,
+            isDashing: false,
+            invulnerableTimer: 0,
+            
+            // Vine Grapple State
+            vineActive: false,
+            vineTargetX: 0,
+            vineTargetY: 0,
+            vineMaxDist: 340,
+            attachedAnchor: null,
+
+            lastCheckpoint: { x: 400, y: 3500 }
+        };
+
+        const keys = { left: false, right: false, up: false, jumpPressed: false, dash: false, vine: false };
+        let cameraY = 0;
+
+        // Stage Config
+        const STAGE = {
+            title: 'STAGE 1: 激動の胃袋 (Peristaltic Pit)',
+            height: 3800,
+            acidLevel: 4100,
+            acidRiseSpeed: 0.7,
+            bgGradient: ['#2e0513', '#120108']
+        };
+
+        let platforms = [];
+        let anchors = [];
+        let crumblingPlatforms = [];
+        let crushers = [];
+        let enzymeShooters = [];
+        let projectiles = [];
+        let destructibles = [];
+        let collectibles = [];
+        let checkpoints = [];
+        let particles = [];
+        let exitGate = null;
+
+        function initLevel() {
+            seed.x = 400;
+            seed.y = 3500;
+            seed.vx = 0;
+            seed.vy = 0;
+            seed.health = 100;
+            seed.vineActive = false;
+            seed.attachedAnchor = null;
+
+            STAGE.acidLevel = 4000;
+            cameraY = STAGE.height - V_HEIGHT;
+
+            platforms = [];
+            anchors = [];
+            crumblingPlatforms = [];
+            crushers = [];
+            enzymeShooters = [];
+            projectiles = [];
+            destructibles = [];
+            collectibles = [];
+            checkpoints = [];
+            particles = [];
+
+            // Outer Walls
+            platforms.push({ x: 0, y: 0, width: 40, height: STAGE.height, type: 'wall' });
+            platforms.push({ x: V_WIDTH - 40, y: 0, width: 40, height: STAGE.height, type: 'wall' });
+
+            // Safe Starting Ground
+            platforms.push({ x: 200, y: 3550, width: 400, height: 35, type: 'safe' });
+
+            // Checkpoints
+            checkpoints.push({ x: 400, y: 3520, activated: true });
+            checkpoints.push({ x: 150, y: 2600, activated: false });
+            checkpoints.push({ x: 650, y: 1500, activated: false });
+
+            const steps = Math.floor(STAGE.height / 110);
+
+            for (let i = 1; i < steps - 2; i++) {
+                const py = STAGE.height - (i * 110) - 180;
+
+                // 1. Regular Platforms
+                if (i % 2 === 0) {
+                    const px = (i % 4 === 0) ? 80 : (i % 4 === 2 ? 480 : 280);
+                    platforms.push({ x: px, y: py, width: 220, height: 26, type: 'organic' });
+                }
+
+                // 2. GREEN ANCHOR POINTS
+                if (i % 2 === 1 || i % 3 === 0) {
+                    const ax = (i % 3 === 0) ? 140 : ((i % 3 === 1) ? 400 : 660);
+                    anchors.push({
+                        x: ax,
+                        y: py - 40,
+                        radius: 18,
+                        pulse: Math.random() * Math.PI * 2
+                    });
+                }
+
+                // 3. Crumbling Platforms
+                if (i % 4 === 1) {
+                    const cx = (i % 2 === 0) ? 120 : 460;
+                    crumblingPlatforms.push({
+                        x: cx, y: py - 20, width: 180, height: 24,
+                        state: 'idle',
+                        collapseTimer: 0
+                    });
+                }
+
+                // 4. Moving Crushers
+                if (i % 6 === 0) {
+                    crushers.push({
+                        x: (i % 2 === 0) ? 40 : 540,
+                        y: py - 50,
+                        width: 220,
+                        height: 50,
+                        minX: 40,
+                        maxX: 540,
+                        speed: 2.0,
+                        dir: 1
+                    });
+                }
+
+                // 5. Enzyme Shooters
+                if (i % 7 === 2) {
+                    enzymeShooters.push({
+                        x: (i % 2 === 0) ? 60 : 700,
+                        y: py,
+                        cooldown: 0,
+                        fireRate: 110
+                    });
+                }
+
+                // 6. Destructibles
+                if (i % 5 === 3) {
+                    destructibles.push({
+                        x: 320, y: py - 10, width: 160, height: 40, name: '未消化ステーキ'
+                    });
+                }
+
+                // Collectibles
+                if (Math.random() < 0.4) {
+                    collectibles.push({
+                        x: 100 + Math.random() * 600,
+                        y: py - 30,
+                        radius: 12,
+                        type: Math.random() < 0.4 ? 'pill' : 'water',
+                        collected: false
+                    });
+                }
+            }
+
+            // Exit Scope
+            exitGate = {
+                x: V_WIDTH / 2 - 90,
+                y: 100,
+                width: 180,
+                height: 60,
+                title: '🎥 救出内視鏡スコープ'
+            };
+
+            seed.lastCheckpoint = { x: 400, y: 3500 };
+        }
+
+        // Keyboard bindings
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
+                if (!keys.jumpPressed) performJump();
+                keys.jumpPressed = true;
+                keys.up = true;
+            }
+            if (e.code === 'KeyE') {
+                if (!keys.vine) triggerVineKeyboard();
+                keys.vine = true;
+            }
+            if (e.code === 'ShiftLeft' || e.code === 'KeyZ') {
+                if (!keys.dash) triggerDash();
+                keys.dash = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
+                keys.jumpPressed = false;
+                keys.up = false;
+            }
+            if (e.code === 'KeyE') {
+                keys.vine = false;
+                seed.vineActive = false;
+            }
+            if (e.code === 'ShiftLeft' || e.code === 'KeyZ') keys.dash = false;
+        });
+
+        // Gamepad API Handling
+        let gamepadConnected = false;
+        let prevGamepadButtons = [];
+
+        window.addEventListener("gamepadconnected", (e) => {
+            gamepadConnected = true;
+            document.getElementById('gamepadDot').className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+            document.getElementById('gamepadText').innerText = `接続: ${e.gamepad.id.substring(0, 16)}...`;
+        });
+
+        window.addEventListener("gamepaddisconnected", () => {
+            gamepadConnected = false;
+            document.getElementById('gamepadDot').className = "w-2 h-2 rounded-full bg-gray-500";
+            document.getElementById('gamepadText').innerText = "コントローラー未接続";
+        });
+
+        function pollGamepad() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            if (!gamepads) return;
+
+            const gp = gamepads[0];
+            if (!gp) return;
+
+            // Axes (Left Stick)
+            const axisX = gp.axes[0] || 0;
+            const axisY = gp.axes[1] || 0;
+
+            if (Math.abs(axisX) > 0.15) {
+                if (axisX < 0) { keys.left = true; keys.right = false; }
+                else { keys.right = true; keys.left = false; }
+            } else if (!joystick.active) {
+                // If not using joystick or keyboard
+            }
+
+            // Buttons
+            const btnA = gp.buttons[0] && gp.buttons[0].pressed; // Jump
+            const btnB = gp.buttons[1] && gp.buttons[1].pressed; // Vine
+            const btnX = gp.buttons[2] && gp.buttons[2].pressed; // Dash
+            const btnR1 = gp.buttons[5] && gp.buttons[5].pressed; // Vine Alternative
+
+            if (btnA && !prevGamepadButtons[0]) {
+                performJump();
+            }
+            if ((btnB || btnR1) && !prevGamepadButtons[1]) {
+                triggerVineKeyboard();
+                seed.vineActive = true;
+            } else if (!btnB && !btnR1 && prevGamepadButtons[1]) {
+                seed.vineActive = false;
+            }
+
+            if (btnX && !prevGamepadButtons[2]) {
+                triggerDash();
+            }
+
+            prevGamepadButtons = [btnA, btnB || btnR1, btnX];
+        }
+
+        function setupTouchEvents() {
+            const bind = (id, onPress, onRelease) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); if (onPress) onPress(); });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); if (onRelease) onRelease(); });
+            };
+
+            bind('btnJump', () => { performJump(); keys.up = true; }, () => keys.up = false);
+            bind('btnVine', () => { triggerVineKeyboard(); keys.vine = true; }, () => { keys.vine = false; seed.vineActive = false; });
+            bind('btnDash', () => triggerDash(), () => {});
+        }
+
+        function performJump() {
+            if (gameState !== 'PLAYING') return;
+            AudioEngine.init();
+
+            if (seed.isGrounded) {
+                seed.vy = -14.0;
+                seed.isGrounded = false;
+                seed.doubleJumpAvailable = true;
+                seed.vineActive = false;
+                AudioEngine.playJump();
+                return;
+            }
+
+            if (seed.isTouchingWallLeft) {
+                seed.vy = -13.0;
+                seed.vx = 9.0;
+                seed.doubleJumpAvailable = true;
+                seed.vineActive = false;
+                AudioEngine.playJump();
+                return;
+            }
+            if (seed.isTouchingWallRight) {
+                seed.vy = -13.0;
+                seed.vx = -9.0;
+                seed.doubleJumpAvailable = true;
+                seed.vineActive = false;
+                AudioEngine.playJump();
+                return;
+            }
+
+            if (seed.doubleJumpAvailable) {
+                seed.vy = -12.0;
+                seed.doubleJumpAvailable = false;
+                seed.vineActive = false;
+                AudioEngine.playJump();
+            }
+        }
+
+        function triggerVineKeyboard() {
+            let dirX = keys.left ? -1 : (keys.right ? 1 : 0);
+            let dirY = -1;
+
+            if (joystick.active) {
+                dirX = joystick.vectorX;
+                dirY = joystick.vectorY;
+            }
+
+            const targetX = seed.x + (dirX !== 0 ? dirX * 240 : 0);
+            const targetY = seed.y + dirY * 240;
+            triggerVineAim(targetX, targetY);
+        }
+
+        function triggerVineAim(targetX, targetY) {
+            if (gameState !== 'PLAYING') return;
+            AudioEngine.init();
+
+            let bestAnchor = null;
+            let minDist = seed.vineMaxDist;
+
+            for (let a of anchors) {
+                const dist = Math.hypot(a.x - seed.x, a.y - seed.y);
+                if (dist <= seed.vineMaxDist) {
+                    const aimAngle = Math.atan2(targetY - seed.y, targetX - seed.x);
+                    const anchorAngle = Math.atan2(a.y - seed.y, a.x - seed.x);
+                    const diff = Math.abs(aimAngle - anchorAngle);
+
+                    if (diff < 0.7 || dist < 130) {
+                        if (dist < minDist) {
+                            minDist = dist;
+                            bestAnchor = a;
+                        }
+                    }
+                }
+            }
+
+            if (bestAnchor) {
+                seed.vineTargetX = bestAnchor.x;
+                seed.vineTargetY = bestAnchor.y;
+                seed.attachedAnchor = bestAnchor;
+                seed.vineActive = true;
+                AudioEngine.playVineHook();
+            } else {
+                seed.vineActive = false;
+                createDeflectParticles(targetX, targetY);
+                AudioEngine.playVineMiss();
+            }
+        }
+
+        function createDeflectParticles(tx, ty) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: tx,
+                    y: ty,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 15,
+                    color: '#f43f5e'
+                });
+            }
+        }
+
+        function triggerDash() {
+            if (gameState !== 'PLAYING' || seed.dashCooldown > 0) return;
+            AudioEngine.init();
+
+            seed.isDashing = true;
+            seed.dashCooldown = 40;
+            const dir = keys.left ? -1 : (keys.right ? 1 : (seed.vx >= 0 ? 1 : -1));
+            seed.vx = dir * 18;
+            seed.vy = -3.5;
+            AudioEngine.playDash();
+        }
+
+        function updatePhysics() {
+            pollGamepad();
+
+            if (seed.dashCooldown > 0) seed.dashCooldown--;
+            if (seed.invulnerableTimer > 0) seed.invulnerableTimer--;
+
+            const accel = 0.85;
+            const maxSpeed = seed.isDashing ? 16 : 8.0;
+
+            // Apply Horizontal Input from Joystick or Keys
+            if (joystick.active) {
+                seed.vx += joystick.vectorX * accel * 1.2;
+                seed.vRot += joystick.vectorX * 0.05;
+            } else {
+                if (keys.left) { seed.vx -= accel; seed.vRot -= 0.05; }
+                if (keys.right) { seed.vx += accel; seed.vRot += 0.05; }
+            }
+
+            seed.vx *= 0.91;
+
+            if (seed.vineActive && seed.attachedAnchor) {
+                const dx = seed.attachedAnchor.x - seed.x;
+                const dy = seed.attachedAnchor.y - seed.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > 25) {
+                    seed.vx += (dx / dist) * 1.5;
+                    seed.vy += (dy / dist) * 1.5;
+                }
+            }
+
+            const isSliding = (seed.isTouchingWallLeft || seed.isTouchingWallRight) && seed.vy > 0;
+            seed.vy += isSliding ? 0.2 : 0.45;
+
+            seed.vx = Math.max(-maxSpeed, Math.min(maxSpeed, seed.vx));
+
+            seed.x += seed.vx;
+            seed.y += seed.vy;
+            seed.rotation += seed.vRot;
+            seed.vRot *= 0.9;
+
+            if (Math.abs(seed.vx) < 2) seed.isDashing = false;
+
+            seed.isTouchingWallLeft = false;
+            seed.isTouchingWallRight = false;
+            seed.isGrounded = false;
+
+            // 1. Static Platforms
+            for (let p of platforms) {
+                if (seed.x + seed.radius > p.x && seed.x - seed.radius < p.x + p.width &&
+                    seed.y + seed.radius > p.y && seed.y - seed.radius < p.y + p.height) {
+
+                    if (p.type === 'wall') {
+                        if (seed.x < V_WIDTH / 2) {
+                            seed.x = p.x + p.width + seed.radius;
+                            seed.isTouchingWallLeft = true;
+                        } else {
+                            seed.x = p.x - seed.radius;
+                            seed.isTouchingWallRight = true;
+                        }
+                        seed.vx = 0;
+                    } else {
+                        if (seed.vy > 0 && seed.y - seed.vy <= p.y + 10) {
+                            seed.y = p.y - seed.radius;
+                            seed.vy = 0;
+                            seed.isGrounded = true;
+                            seed.doubleJumpAvailable = true;
+                        }
+                    }
+                }
+            }
+
+            // 2. Crumbling Platforms
+            for (let cp of crumblingPlatforms) {
+                if (cp.state !== 'collapsed') {
+                    if (seed.x + seed.radius > cp.x && seed.x - seed.radius < cp.x + cp.width &&
+                        seed.y + seed.radius > cp.y && seed.y - seed.radius < cp.y + cp.height) {
+                        
+                        if (seed.vy > 0 && seed.y - seed.vy <= cp.y + 12) {
+                            seed.y = cp.y - seed.radius;
+                            seed.vy = 0;
+                            seed.isGrounded = true;
+                            seed.doubleJumpAvailable = true;
+
+                            if (cp.state === 'idle') {
+                                cp.state = 'stepping';
+                                cp.collapseTimer = 45;
+                            }
+                        }
+                    }
+                }
+
+                if (cp.state === 'stepping') {
+                    cp.collapseTimer--;
+                    if (cp.collapseTimer <= 0) cp.state = 'collapsed';
+                }
+            }
+
+            // 3. Crushers
+            for (let cr of crushers) {
+                cr.x += cr.speed * cr.dir;
+                if (cr.x <= cr.minX || cr.x + cr.width >= cr.maxX + cr.width) cr.dir *= -1;
+
+                if (seed.x + seed.radius > cr.x && seed.x - seed.radius < cr.x + cr.width &&
+                    seed.y + seed.radius > cr.y && seed.y - seed.radius < cr.y + cr.height) {
+                    if (seed.invulnerableTimer === 0) {
+                        seed.health -= 25;
+                        seed.invulnerableTimer = 20;
+                        seed.vy = -10;
+                        AudioEngine.playAcid();
+                    }
+                }
+            }
+
+            // 4. Shooters
+            for (let shooter of enzymeShooters) {
+                shooter.cooldown++;
+                if (shooter.cooldown >= shooter.fireRate) {
+                    shooter.cooldown = 0;
+                    projectiles.push({
+                        x: shooter.x,
+                        y: shooter.y,
+                        vx: shooter.x < V_WIDTH / 2 ? 4.5 : -4.5,
+                        vy: 0,
+                        radius: 8
+                    });
+                }
+            }
+
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let proj = projectiles[i];
+                proj.x += proj.vx;
+
+                if (Math.hypot(seed.x - proj.x, seed.y - proj.y) < seed.radius + proj.radius) {
+                    if (seed.invulnerableTimer === 0) {
+                        seed.health -= 15;
+                        seed.invulnerableTimer = 15;
+                        AudioEngine.playAcid();
+                    }
+                    projectiles.splice(i, 1);
+                } else if (proj.x < 0 || proj.x > V_WIDTH) {
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            // 5. Destructibles
+            for (let i = destructibles.length - 1; i >= 0; i--) {
+                let d = destructibles[i];
+                if (seed.x + seed.radius > d.x && seed.x - seed.radius < d.x + d.width &&
+                    seed.y + seed.radius > d.y && seed.y - seed.radius < d.y + d.height) {
+
+                    if (seed.isDashing) {
+                        destructibles.splice(i, 1);
+                        score += 300;
+                        AudioEngine.playJump();
+                    } else if (seed.vy > 0 && seed.y < d.y + 12) {
+                        seed.y = d.y - seed.radius;
+                        seed.vy = 0;
+                        seed.isGrounded = true;
+                    }
+                }
+            }
+
+            // 6. Checkpoints
+            for (let cp of checkpoints) {
+                if (!cp.activated && Math.hypot(seed.x - cp.x, seed.y - cp.y) < 60) {
+                    cp.activated = true;
+                    seed.lastCheckpoint = { x: cp.x, y: cp.y };
+                    AudioEngine.playCheckpoint();
+                    score += 500;
+                }
+            }
+
+            // 7. Collectibles
+            for (let c of collectibles) {
+                if (!c.collected && Math.hypot(seed.x - c.x, seed.y - c.y) < seed.radius + c.radius) {
+                    c.collected = true;
+                    seed.health = Math.min(seed.maxHealth, seed.health + (c.type === 'pill' ? 30 : 15));
+                    score += 100;
+                    AudioEngine.playJump();
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let pt = particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.life--;
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+
+            STAGE.acidLevel -= STAGE.acidRiseSpeed;
+
+            if (seed.y + seed.radius >= STAGE.acidLevel) {
+                if (seed.invulnerableTimer === 0) {
+                    seed.health -= 20;
+                    seed.invulnerableTimer = 15;
+                    seed.vy = -12;
+                    AudioEngine.playAcid();
+                }
+            }
+
+            const targetCamY = seed.y - V_HEIGHT * 0.45;
+            cameraY += (targetCamY - cameraY) * 0.12;
+            cameraY = Math.max(0, Math.min(STAGE.height - V_HEIGHT, cameraY));
+
+            if (exitGate && seed.y <= exitGate.y + exitGate.height) {
+                triggerClear();
+            }
+
+            if (seed.health <= 0) {
+                respawnAtCheckpoint();
+            }
+        }
+
+        function respawnAtCheckpoint() {
+            seed.x = seed.lastCheckpoint.x;
+            seed.y = seed.lastCheckpoint.y;
+            seed.vx = 0;
+            seed.vy = 0;
+            seed.health = 80;
+            seed.invulnerableTimer = 30;
+            STAGE.acidLevel = Math.max(seed.y + 350, STAGE.acidLevel);
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            ctx.save();
+            ctx.translate(0, -cameraY);
+
+            // Organ Background
+            const bgGrad = ctx.createLinearGradient(0, cameraY, 0, cameraY + V_HEIGHT);
+            bgGrad.addColorStop(0, STAGE.bgGradient[0]);
+            bgGrad.addColorStop(1, STAGE.bgGradient[1]);
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, cameraY, V_WIDTH, V_HEIGHT);
+
+            // Folds
+            ctx.strokeStyle = 'rgba(244, 63, 94, 0.08)';
+            ctx.lineWidth = 12;
+            for (let i = 0; i < STAGE.height; i += 120) {
+                ctx.beginPath();
+                ctx.moveTo(0, i + Math.sin(i + gameTime * 0.02) * 20);
+                ctx.lineTo(V_WIDTH, i + Math.sin(i) * 20);
+                ctx.stroke();
+            }
+
+            // Platforms
+            for (let p of platforms) {
+                if (p.type === 'wall') {
+                    ctx.fillStyle = '#881337';
+                    ctx.fillRect(p.x, p.y, p.width, p.height);
+                } else {
+                    ctx.fillStyle = p.type === 'safe' ? '#15803d' : '#9f1239';
+                    ctx.beginPath();
+                    ctx.roundRect(p.x, p.y, p.width, p.height, 10);
+                    ctx.fill();
+                    ctx.strokeStyle = '#f43f5e';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            // GREEN ANCHORS
+            for (let a of anchors) {
+                a.pulse += 0.05;
+                const pulseRadius = a.radius + Math.sin(a.pulse) * 3;
+
+                ctx.fillStyle = 'rgba(74, 222, 128, 0.25)';
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, pulseRadius + 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, pulseRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#86efac';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Crumbling
+            for (let cp of crumblingPlatforms) {
+                if (cp.state !== 'collapsed') {
+                    ctx.fillStyle = cp.state === 'stepping' ? '#f59e0b' : '#d97706';
+                    ctx.beginPath();
+                    ctx.roundRect(cp.x, cp.y, cp.width, cp.height, 8);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fef08a';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            // Crushers
+            for (let cr of crushers) {
+                ctx.fillStyle = '#be123c';
+                ctx.beginPath();
+                ctx.roundRect(cr.x, cr.y, cr.width, cr.height, 12);
+                ctx.fill();
+                ctx.strokeStyle = '#fda4af';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            // Shooters
+            for (let s of enzymeShooters) {
+                ctx.fillStyle = '#84cc16';
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 16, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            for (let proj of projectiles) {
+                ctx.fillStyle = '#a3e635';
+                ctx.beginPath();
+                ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Destructibles
+            for (let d of destructibles) {
+                ctx.fillStyle = '#b91c1c';
+                ctx.beginPath();
+                ctx.roundRect(d.x, d.y, d.width, d.height, 8);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.name, d.x + d.width / 2, d.y + d.height / 2 + 4);
+            }
+
+            // Checkpoints
+            for (let cp of checkpoints) {
+                ctx.fillStyle = cp.activated ? '#22c55e' : '#64748b';
+                ctx.fillRect(cp.x - 4, cp.y - 30, 8, 30);
+                ctx.beginPath();
+                ctx.moveTo(cp.x + 4, cp.y - 30);
+                ctx.lineTo(cp.x + 28, cp.y - 20);
+                ctx.lineTo(cp.x + 4, cp.y - 10);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Collectibles
+            for (let c of collectibles) {
+                if (!c.collected) {
+                    ctx.fillStyle = c.type === 'pill' ? '#38bdf8' : '#60a5fa';
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Exit Gate
+            if (exitGate) {
+                ctx.fillStyle = '#16a34a';
+                ctx.beginPath();
+                ctx.roundRect(exitGate.x, exitGate.y, exitGate.width, exitGate.height, 14);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(exitGate.title, exitGate.x + exitGate.width / 2, exitGate.y + 35);
+            }
+
+            // Particles
+            for (let pt of particles) {
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Active Vine Wire
+            if (seed.vineActive && seed.attachedAnchor) {
+                ctx.strokeStyle = '#4ade80';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(seed.x, seed.y);
+                ctx.lineTo(seed.attachedAnchor.x, seed.attachedAnchor.y);
+                ctx.stroke();
+            }
+
+            // Player Seed
+            ctx.save();
+            ctx.translate(seed.x, seed.y);
+            ctx.rotate(seed.rotation);
+
+            if (seed.invulnerableTimer % 4 < 2) {
+                ctx.fillStyle = seed.isDashing ? '#f59e0b' : '#78350f';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, seed.radius * 1.1, seed.radius * 0.9, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#a16207';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, seed.radius * 0.7, seed.radius * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath();
+                ctx.moveTo(-4, -seed.radius);
+                ctx.quadraticCurveTo(0, -seed.radius - 14, 6, -seed.radius - 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Aiming Reticle
+            ctx.strokeStyle = 'rgba(74, 222, 128, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(mousePos.x, mousePos.y, 14, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Acid Wave
+            const acidY = STAGE.acidLevel;
+            ctx.fillStyle = 'rgba(132, 204, 22, 0.92)';
+            ctx.beginPath();
+            ctx.moveTo(0, acidY);
+            for (let x = 0; x <= V_WIDTH; x += 40) {
+                ctx.lineTo(x, acidY + Math.sin(x * 0.04 + gameTime * 0.08) * 8);
+            }
+            ctx.lineTo(V_WIDTH, STAGE.height + 500);
+            ctx.lineTo(0, STAGE.height + 500);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+
+            renderHUD();
+
+            if (gameState === 'COUNTDOWN') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+                ctx.fillStyle = '#4ade80';
+                ctx.font = 'black 90px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(countdownValue > 0 ? countdownValue : 'READY GO!', V_WIDTH / 2, V_HEIGHT / 2 + 25);
+            }
+        }
+
+        function renderHUD() {
+            ctx.fillStyle = 'rgba(18, 4, 11, 0.85)';
+            ctx.beginPath();
+            ctx.roundRect(15, 15, 260, 50, 10);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('🥑 種の生命力', 25, 32);
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(25, 38, 240, 12);
+
+            const hpRatio = Math.max(0, seed.health / seed.maxHealth);
+            ctx.fillStyle = hpRatio > 0.4 ? '#22c55e' : '#ef4444';
+            ctx.fillRect(25, 38, 240 * hpRatio, 12);
+
+            ctx.fillStyle = 'rgba(18, 4, 11, 0.85)';
+            ctx.beginPath();
+            ctx.roundRect(V_WIDTH - 140, 15, 125, 50, 10);
+            ctx.fill();
+
+            const progress = Math.max(0, Math.min(100, Math.floor(((STAGE.height - seed.y) / STAGE.height) * 100)));
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`脱出率: ${progress}%`, V_WIDTH - 77, 35);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(`SCORE: ${score}`, V_WIDTH - 77, 52);
+        }
+
+        function gameLoop() {
+            gameTime++;
+
+            if (gameState === 'COUNTDOWN') {
+                countdownTimer++;
+                if (countdownTimer % 60 === 0) {
+                    countdownValue--;
+                    AudioEngine.playBeep(440, 0.1);
+                    if (countdownValue <= 0) {
+                        gameState = 'PLAYING';
+                        AudioEngine.playBeep(880, 0.2, 'triangle');
+                    }
+                }
+            } else if (gameState === 'PLAYING') {
+                updatePhysics();
+            }
+
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function triggerClear() {
+            gameState = 'CLEAR';
+            AudioEngine.playWin();
+
+            document.getElementById('endTitle').innerText = '🎉 救出完了！STAGE CLEAR';
+            document.getElementById('endTitle').className = 'text-2xl sm:text-4xl font-black mb-2 text-emerald-400';
+            document.getElementById('endSubtitle').innerText = '胃カメラに掴まり、胃袋脱出に成功しました！';
+
+            document.getElementById('endingBadge').innerHTML = `
+                <p class="font-bold text-amber-300">🎉 脱出達成成功！</p>
+                <p class="mt-1 text-gray-200">スティックとアンカーを駆使して強酸の胃袋を脱出しました！</p>
+                <p class="mt-2 text-emerald-400 font-bold text-base">最終スコア: ${score} pt</p>
+            `;
+            document.getElementById('endModal').classList.remove('hidden');
+        }
+
+        document.getElementById('btnStartGame').addEventListener('click', () => {
+            AudioEngine.init();
+            document.getElementById('startModal').classList.add('hidden');
+            score = 0;
+            initLevel();
+            gameState = 'COUNTDOWN';
+            countdownValue = 3;
+            countdownTimer = 0;
+        });
+
+        document.getElementById('btnRestart').addEventListener('click', () => {
+            document.getElementById('endModal').classList.add('hidden');
+            score = 0;
+            initLevel();
+            gameState = 'COUNTDOWN';
+            countdownValue = 3;
+            countdownTimer = 0;
+        });
+
+        setupTouchEvents();
+
+        window.onload = () => {
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
